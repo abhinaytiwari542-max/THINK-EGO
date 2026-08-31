@@ -1,0 +1,220 @@
+<title>Think Layer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:      #f5f0e4;
+    --ink:     #1c1810;
+    --ink-dim: #6b6350;
+    --line:    #ddd4bd;
+    --link:    #1a44c2;
+    --link-visited: #5b2e9e;
+
+    --font-head: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+    --font-body: 'IBM Plex Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    font-size:15px;
+    line-height:1.7;
+  }
+
+  .page{
+    max-width:640px;
+    margin:0 auto;
+    padding:4.5rem 1.5rem 5rem;
+  }
+
+  h1,h2{ font-family:var(--font-head); font-weight:700; text-wrap:balance; }
+
+  h1{
+    font-size:1.9rem;
+    line-height:1.25;
+    margin:0 0 0.5rem;
+  }
+
+  .tagline{
+    font-family:var(--font-head);
+    font-style:italic;
+    color:var(--ink-dim);
+    font-size:1.05rem;
+    margin:0 0 1.8rem;
+  }
+
+  h2{
+    font-size:1.15rem;
+    margin:2.6rem 0 0.8rem;
+  }
+
+  p{ margin:0 0 1rem; max-width:58ch; }
+
+  ul{ margin:0 0 1rem; padding-left:1.3rem; max-width:58ch; }
+  li{ margin-bottom:0.35rem; }
+
+  a{ color:var(--link); }
+  a:visited{ color:var(--link-visited); }
+  a:hover{ color:var(--ink); }
+
+  strong{ font-weight:600; }
+
+  hr{
+    border:none;
+    border-top:1px solid var(--line);
+    margin:2.8rem 0;
+  }
+
+  .note{
+    color:var(--ink-dim);
+    font-size:0.85rem;
+  }
+
+  .frames{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:0.8rem;
+    margin:1.4rem 0 1.9rem;
+    max-width:58ch;
+  }
+  .frame{
+    border:1px solid var(--line);
+    padding:0.7rem 0.7rem 0.6rem;
+    background:rgba(28,24,16,0.02);
+  }
+  .frame-art{
+    display:block;
+    width:100%;
+    height:auto;
+    color:var(--ink);
+  }
+  .frame-art .bracket{ color:var(--ink-dim); }
+  .frame-cap{
+    margin-top:0.5rem;
+    font-size:0.68rem;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    color:var(--ink-dim);
+  }
+  @media (max-width:480px){
+    .frames{ grid-template-columns:repeat(2,1fr); }
+  }
+
+  footer{
+    margin-top:3rem;
+    color:var(--ink-dim);
+    font-size:0.78rem;
+    letter-spacing:0.02em;
+  }
+
+  @media (max-width:480px){
+    .page{ padding:3rem 1.25rem 4rem; }
+    h1{ font-size:1.6rem; }
+  }
+</style>
+
+<div class="page">
+
+  <h1>Think Layer</h1>
+  <p class="tagline">Egocentric data to train the next generation of physical AI.</p>
+
+  <p>We're a data operation for physical AI. We record egocentric, first-person video of real tasks in real environments, and turn it into training data for robots and embodied AI. Contract-based, shot to spec, priced per hour of usable footage.</p>
+
+  <h2>The problem</h2>
+  <p>Physical AI and robotics are moving fast, but progress is bottlenecked less by weak models than by a lack of high-quality, real-world training data. Good robots need egocentric, first-person data of real tasks in real environments, and almost nobody can collect it at scale, affordably, and to spec.</p>
+
+  <h2>How it works</h2>
+  <p>Today, it's focused capture: a client specifies the task, the environment, and the format, and we go get it. Later, it becomes a standing library: any process recreated and generated on request, without a fresh shoot every time.</p>
+
+  <p class="note">A few of the environments we shoot in:</p>
+  <div class="frames">
+    <div class="frame">
+      <svg class="frame-art" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Workshop capture frame">
+        <g class="bracket">
+          <path d="M4 12 L4 4 L12 4" /><path d="M52 4 L60 4 L60 12" />
+          <path d="M4 52 L4 60 L12 60" /><path d="M60 52 L60 60 L52 60" />
+        </g>
+        <circle cx="32" cy="32" r="9" />
+        <circle cx="32" cy="32" r="3" />
+        <line x1="32" y1="18" x2="32" y2="23" /><line x1="32" y1="41" x2="32" y2="46" />
+        <line x1="18" y1="32" x2="23" y2="32" /><line x1="41" y1="32" x2="46" y2="32" />
+      </svg>
+      <div class="frame-cap">workshop</div>
+    </div>
+    <div class="frame">
+      <svg class="frame-art" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Warehouse capture frame">
+        <g class="bracket">
+          <path d="M4 12 L4 4 L12 4" /><path d="M52 4 L60 4 L60 12" />
+          <path d="M4 52 L4 60 L12 60" /><path d="M60 52 L60 60 L52 60" />
+        </g>
+        <rect x="22" y="26" width="20" height="14" />
+        <rect x="15" y="38" width="12" height="10" />
+        <line x1="10" y1="48" x2="54" y2="48" />
+      </svg>
+      <div class="frame-cap">warehouse</div>
+    </div>
+    <div class="frame">
+      <svg class="frame-art" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Kitchen capture frame">
+        <g class="bracket">
+          <path d="M4 12 L4 4 L12 4" /><path d="M52 4 L60 4 L60 12" />
+          <path d="M4 52 L4 60 L12 60" /><path d="M60 52 L60 60 L52 60" />
+        </g>
+        <line x1="20" y1="34" x2="44" y2="34" />
+        <rect x="22" y="34" width="20" height="12" rx="2" />
+        <path d="M26 30 Q 24 24 27 20" /><path d="M32 30 Q 30 22 33 16" /><path d="M38 30 Q 36 24 39 20" />
+      </svg>
+      <div class="frame-cap">kitchen</div>
+    </div>
+    <div class="frame">
+      <svg class="frame-art" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Retail floor capture frame">
+        <g class="bracket">
+          <path d="M4 12 L4 4 L12 4" /><path d="M52 4 L60 4 L60 12" />
+          <path d="M4 52 L4 60 L12 60" /><path d="M60 52 L60 60 L52 60" />
+        </g>
+        <path d="M20 28 L44 28 L40 46 L24 46 Z" />
+        <path d="M26 28 Q 32 16 38 28" />
+      </svg>
+      <div class="frame-cap">retail floor</div>
+    </div>
+  </div>
+
+  <h2>Why us</h2>
+  <p>Prior experience collecting data to train voice and video models. I know what good training data looks like and how hard it is to source.</p>
+  <p>At Build AI, our team collected over 1M hours of egocentric data. I personally contributed 500K+ hours of that.</p>
+  <p>Beyond that, a network of business and community relationships gets us into the exact locations and environments clients need.</p>
+
+  <h2>Customers</h2>
+  <ul>
+    <li><strong>Mecka</strong>, active customer, $4 per hour of recording</li>
+    <li><strong>Build AI</strong>, past customer, about $5,000 total</li>
+  </ul>
+
+  <h2>Where things stand</h2>
+  <ul>
+    <li>2 customers to date</li>
+    <li>full-time on this since January 2026</li>
+    <li>owner-operated, no outside capital yet</li>
+    <li>priced per hour of usable recording, not flat retainers</li>
+  </ul>
+
+  <h2>Why it's hard to copy</h2>
+  <p>It was never really about the camera. It's access to the people, places, and processes worth recording, and that only comes from relationships built over time, not from a product.</p>
+
+  <h2>Team</h2>
+  <p>Abhinay Tiwari, founder. 100% ownership, solo, full-time. Writes all the code and does all the technical work personally.</p>
+
+  <h2>Funding and collaboration</h2>
+  <p>Open to raising, and open to collaborating with teams building physical AI, robotics, or embodied AI data pipelines. Happy to share a longer deck or sample data on request.</p>
+  <p><a href="https://cal.com/abhinay-tiwari/30min" target="_blank" rel="noopener noreferrer">Book a 30 minute call</a> or connect on <a href="https://www.linkedin.com/in/abhinay-tiwari22/" target="_blank" rel="noopener noreferrer">LinkedIn</a>.</p>
+
+  <hr>
+
+  <footer>Think Layer</footer>
+
+</div>
