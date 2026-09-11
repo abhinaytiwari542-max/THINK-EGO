@@ -1,0 +1,892 @@
+<title>Walk The Floor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;1,600;1,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#f2ede2; --panel:#e9e1ce; --ink:#17130d;
+    --ink-dim:#6b6252; --ink-soft:#948a76; --line:#dcd1b9;
+
+    --ego:#b4532f;    /* human capture, recording */
+    --bot:#2c6b66;    /* machine, training        */
+    --data:#47578a;   /* sync, telemetry          */
+    --amber:#b3852f;  /* trades, the floor        */
+
+    --font-display:'Fraunces',Georgia,serif;
+    --font-mono:'IBM Plex Mono','SFMono-Regular',Menlo,monospace;
+    --font-body:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; background:var(--bg); color:var(--ink-dim);
+    font-family:var(--font-body); font-size:16px; line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    /* clip, not hidden: overflow-x:hidden forces overflow-y:auto, which makes
+       <body> a scroll container and kills sticky + scroll timelines */
+    overflow-x:clip;
+  }
+  a{ color:var(--ink); }
+  :focus-visible{ outline:3px solid var(--ink); outline-offset:3px; }
+  strong{ color:var(--ink); font-weight:600; }
+
+  .wrap{ max-width:1120px; margin:0 auto; padding:0 1.75rem; }
+  h1,h2{ font-family:var(--font-display); font-style:italic; font-weight:700; color:var(--ink); line-height:1.1; margin:0; text-wrap:balance; }
+  h1{ font-size:clamp(2.4rem,6vw,4.4rem); }
+  h2{ font-size:clamp(1.7rem,3.8vw,2.5rem); max-width:17ch; }
+  p{ max-width:52ch; margin:1rem 0 0; }
+
+  .eyebrow{
+    font-family:var(--font-mono); font-size:0.68rem; letter-spacing:0.16em;
+    text-transform:uppercase; color:var(--accent,var(--ink-soft));
+    margin-bottom:0.9rem; display:flex; align-items:center; gap:0.55rem;
+  }
+  .eyebrow::before{ content:''; width:16px; height:2px; background:currentColor; flex:none; }
+
+  .spectrum{ display:flex; height:3px; width:132px; }
+  .spectrum i{ flex:1; }
+  .spectrum i:nth-child(1){ background:var(--ego); }
+  .spectrum i:nth-child(2){ background:var(--amber); }
+  .spectrum i:nth-child(3){ background:var(--bot); }
+  .spectrum i:nth-child(4){ background:var(--data); }
+
+  /* duotone */
+  .ph{ position:relative; isolation:isolate; overflow:hidden; background:var(--panel); display:block; margin:0; }
+  .ph img{
+    display:block; width:100%; height:100%; object-fit:cover;
+    filter:grayscale(1) contrast(1.07) brightness(1.04);
+  }
+  .ph::before{
+    content:''; position:absolute; inset:0; z-index:1; pointer-events:none;
+    background:var(--tint,#8a7f6a); mix-blend-mode:color; opacity:0.46;
+  }
+
+  .chip{
+    position:absolute; z-index:3; display:inline-flex; align-items:center; gap:0.4rem;
+    font-family:var(--font-mono); font-size:0.6rem; letter-spacing:0.14em; text-transform:uppercase;
+    background:rgba(242,237,226,0.93); color:var(--ink);
+    border:1px solid var(--chipline,var(--line)); border-left:3px solid var(--chipline,var(--line));
+    padding:0.35rem 0.6rem;
+  }
+  .chip .dot{ width:6px; height:6px; border-radius:50%; background:var(--chipline,var(--ink)); }
+  .chip.tl{ top:12px; left:12px; }
+  .chip.tr{ top:12px; right:12px; }
+
+  /* ======================= walkthrough shell ======================= */
+
+  /* A station is a length of scroll. Its .pin holds the viewport still while
+     you travel through it, so the image moves instead of the page. */
+  .station{ position:relative; }
+  .station .pin{
+    position:sticky; top:0; height:100svh; overflow:hidden;
+    display:flex; align-items:center;
+  }
+
+  /* full bleed travelling shot */
+  .travel{ height:210vh; }
+  .travel .pin .ph{ position:absolute; inset:0; }
+  .travel .scrim{
+    position:absolute; inset:0; z-index:2;
+    background:linear-gradient(to top, rgba(242,237,226,0.94) 0%, rgba(242,237,226,0.55) 30%, rgba(242,237,226,0.10) 62%);
+  }
+  .travel .label{
+    position:relative; z-index:3; width:100%;
+  }
+  .travel .label .big{
+    font-family:var(--font-display); font-style:italic; font-weight:700;
+    font-size:clamp(1.9rem,4.6vw,3.2rem); color:var(--ink); line-height:1.08; max-width:18ch;
+  }
+
+  /* ============ the walk: a first person corridor ============
+     You stand still and the floor comes toward you. Zones hang on the left and
+     right of a central aisle, with signs overhead, exactly like the real plan. */
+  .walk{ height:720vh; }
+  .walk .pin{
+    display:block; perspective:1100px; perspective-origin:50% 46%;
+    background:var(--bg);
+  }
+  .scene{
+    position:absolute; inset:0; transform-style:preserve-3d;
+    transform:translate3d(0,0,0); will-change:transform;
+  }
+
+  /* floor and ceiling give the eye something to measure travel against */
+  .plane{ position:absolute; left:50%; top:50%; width:2400px; height:52000px; opacity:0.55; }
+  .plane.fl{
+    transform:translate(-50%,-50%) translate3d(0,300px,-16000px) rotateX(90deg);
+    background:
+      repeating-linear-gradient(to bottom, rgba(23,19,13,0.17) 0 2px, transparent 2px 150px),
+      linear-gradient(to right, transparent 0 32%, rgba(23,19,13,0.13) 32% 32.3%, transparent 32.3% 67.7%, rgba(23,19,13,0.13) 67.7% 68%, transparent 68%);
+  }
+  .plane.ce{
+    transform:translate(-50%,-50%) translate3d(0,-340px,-16000px) rotateX(-90deg);
+    background:repeating-linear-gradient(to bottom, rgba(23,19,13,0.12) 0 3px, transparent 3px 460px);
+    opacity:0.4;
+  }
+
+  .zone{
+    position:absolute; left:50%; top:50%; width:420px;
+    transform:translate(-50%,-50%) translate3d(calc(var(--x) * 470px), 10px, var(--z)) rotateY(calc(var(--x) * -36deg));
+  }
+  .zone .ph{ aspect-ratio:4/3; border:1px solid var(--ink); }
+  .zone .plate{
+    margin-top:0.7rem; display:flex; align-items:baseline; justify-content:space-between; gap:1rem;
+    font-family:var(--font-mono); font-size:0.66rem; letter-spacing:0.12em; text-transform:uppercase;
+    color:var(--ink-dim); border-top:2px solid var(--c,var(--line)); padding-top:0.5rem;
+  }
+  .zone .plate b{ color:var(--ink); font-weight:600; }
+
+  /* signs hung over the aisle, like the real floor */
+  .sign{
+    position:absolute; left:50%; top:50%; width:330px; text-align:center;
+    transform:translate(-50%,-50%) translate3d(0,-215px,var(--z));
+    font-family:var(--font-mono); font-size:0.72rem; letter-spacing:0.18em; text-transform:uppercase;
+    color:var(--ink); background:rgba(242,237,226,0.94);
+    border:1px solid var(--ink); border-top:4px solid var(--c,var(--ink));
+    padding:0.55rem 0.6rem;
+  }
+  .sign::before, .sign::after{
+    content:''; position:absolute; top:-26px; width:1px; height:26px; background:var(--ink); opacity:0.5;
+  }
+  .sign::before{ left:22%; }
+  .sign::after{ right:22%; }
+
+  /* haze so the far end of the aisle dissolves instead of stopping dead */
+  .fog{
+    position:absolute; inset:0; z-index:5; pointer-events:none;
+    background:
+      radial-gradient(ellipse 38% 42% at 50% 46%, rgba(242,237,226,1) 0%, rgba(242,237,226,0.93) 24%, rgba(242,237,226,0) 60%),
+      radial-gradient(ellipse 96% 96% at 50% 50%, rgba(242,237,226,0) 60%, rgba(242,237,226,0.5) 100%);
+  }
+  .walkHead{
+    position:absolute; z-index:6; top:0; left:0; right:0;
+    padding:5rem 1.75rem 0; pointer-events:none;
+  }
+  .walkHead .inner{ max-width:1120px; margin:0 auto; }
+
+  @media (max-width:900px){
+    .zone{ width:300px; transform:translate(-50%,-50%) translate3d(calc(var(--x) * 320px), 10px, var(--z)) rotateY(calc(var(--x) * -34deg)); }
+    .sign{ width:260px; font-size:0.62rem; }
+  }
+
+  /* ======================= motion ======================= */
+  @keyframes rise{ from{ opacity:0; transform:translateY(24px); } to{ opacity:1; transform:none; } }
+  @keyframes riseIn{ from{ opacity:0; transform:translateY(16px); } to{ opacity:1; transform:none; } }
+  @keyframes drift{ from{ transform:scale(1.16) translateY(-3.4%); } to{ transform:scale(1.16) translateY(3.4%); } }
+  @keyframes dolly{ from{ transform:scale(1.04); } to{ transform:scale(1.24); } }
+  @keyframes fill{ from{ transform:scaleX(0); } to{ transform:scaleX(1); } }
+  @keyframes sweep{ from{ transform:scaleX(0); } to{ transform:scaleX(1); } }
+  @keyframes forward{ from{ transform:translate3d(0,0,0); } to{ transform:translate3d(0,0,var(--walkend,17200px)); } }
+  @keyframes labelIn{
+    0%{ opacity:0; transform:translateY(26px); }
+    18%,78%{ opacity:1; transform:none; }
+    100%{ opacity:0; transform:translateY(-18px); }
+  }
+
+  .reveal, .reveal-s{ opacity:1; }
+
+  @supports (animation-timeline: view()) and (animation-range: entry){
+    .reveal{ animation:rise 1s linear both; animation-timeline:view(); animation-range:entry 4% cover 26%; }
+    .reveal-s{ animation:riseIn 1s linear both; animation-timeline:view(); animation-range:entry 2% cover 22%; }
+    .ph.px img{ animation:drift linear both; animation-timeline:view(); animation-range:cover 0% cover 100%; }
+    .ruleline{ animation:sweep linear both; animation-timeline:view(); animation-range:entry 0% cover 34%; transform-origin:left center; }
+
+    /* each station drives its own travel, scoped to how long it is pinned */
+    .station{ view-timeline:--st block; }
+    .travel .pin .ph img{ animation:dolly linear both; animation-timeline:--st; animation-range:contain 0% contain 100%; }
+    .travel .label{ animation:labelIn linear both; animation-timeline:--st; animation-range:contain 0% contain 100%; }
+    .walk .scene{ animation:forward linear both; animation-timeline:--st; animation-range:contain 0% contain 100%; }
+
+    .rail i{ animation:fill linear both; animation-timeline:scroll(root block); transform-origin:left center; }
+    .rail i:nth-child(1){ animation-range:0% 25%; }
+    .rail i:nth-child(2){ animation-range:25% 50%; }
+    .rail i:nth-child(3){ animation-range:50% 75%; }
+    .rail i:nth-child(4){ animation-range:75% 100%; }
+  }
+
+  /* Fallback for engines without scroll timelines. Only switched on by script. */
+  html.js-motion .reveal,
+  html.js-motion .reveal-s{ opacity:0; transform:translateY(20px); transition:opacity .85s ease, transform .85s cubic-bezier(.2,.7,.2,1); }
+  html.js-motion .reveal.in,
+  html.js-motion .reveal-s.in{ opacity:1; transform:none; }
+  html.js-motion .ruleline{ transform:scaleX(0); transform-origin:left center; transition:transform .9s cubic-bezier(.2,.7,.2,1); }
+  html.js-motion .ruleline.in{ transform:scaleX(1); }
+
+  /* Reduced motion: the walkthrough collapses into a readable document.
+     Pins release, the aisle wraps, nothing travels. */
+  @media (prefers-reduced-motion: reduce){
+    :root:not([data-motion="on"]) .reveal,
+    :root:not([data-motion="on"]) .reveal-s,
+    :root:not([data-motion="on"]) .ph img,
+    :root:not([data-motion="on"]) .ruleline,
+    :root:not([data-motion="on"]) .travel .label{
+      animation:none !important; transition:none !important;
+      opacity:1 !important; transform:none !important;
+    }
+    :root:not([data-motion="on"]) .station{ height:auto !important; }
+    :root:not([data-motion="on"]) .station .pin{ position:static; height:auto; display:block; }
+    :root:not([data-motion="on"]) .travel .pin{ min-height:62vh; position:relative; }
+    :root:not([data-motion="on"]) .travel .label{ padding:3rem 1.75rem; }
+    /* the corridor flattens into a plain grid of zones */
+    :root:not([data-motion="on"]) .walk .pin{ perspective:none; }
+    :root:not([data-motion="on"]) .walkHead{ position:static; padding:3.5rem 1.75rem 1rem; }
+    :root:not([data-motion="on"]) .scene{
+      position:static; transform:none !important; animation:none !important; transform-style:flat;
+      display:grid; gap:1.4rem; grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+      max-width:1120px; margin:0 auto; padding:0 1.75rem 4rem;
+    }
+    :root:not([data-motion="on"]) .zone{
+      position:static; width:auto; transform:none !important;
+    }
+    :root:not([data-motion="on"]) .plane,
+    :root:not([data-motion="on"]) .fog,
+    :root:not([data-motion="on"]) .sign{ display:none; }
+    .motionbtn{ display:inline-flex !important; }
+  }
+
+  /* ---------- fixed instrumentation ---------- */
+  .rail{ position:fixed; top:0; left:0; right:0; height:3px; z-index:40; display:flex; pointer-events:none; }
+  .rail i{ flex:1; display:block; height:100%; transform:scaleX(0); transform-origin:left center; }
+  .rail i:nth-child(1){ background:var(--ego); }
+  .rail i:nth-child(2){ background:var(--amber); }
+  .rail i:nth-child(3){ background:var(--bot); }
+  .rail i:nth-child(4){ background:var(--data); }
+
+  .hud{
+    position:fixed; z-index:40; bottom:18px; left:18px; right:18px;
+    display:flex; justify-content:space-between; align-items:flex-end; gap:1rem;
+    pointer-events:none;
+    font-family:var(--font-mono); font-size:0.62rem; letter-spacing:0.14em; text-transform:uppercase;
+  }
+  .hud .box{
+    background:rgba(242,237,226,0.92); border:1px solid var(--line);
+    border-left:3px solid var(--hudc,var(--ego));
+    padding:0.4rem 0.65rem; color:var(--ink);
+    display:inline-flex; align-items:center; gap:0.5rem;
+    transition:border-color .5s ease;
+  }
+  .hud .rec{ width:7px; height:7px; border-radius:50%; background:var(--ego); }
+  .hud .tc{ font-variant-numeric:tabular-nums; }
+  @media (max-width:760px){ .hud .right{ display:none; } .hud{ bottom:10px; left:10px; right:10px; } }
+
+  .aisle{
+    position:fixed; left:16px; top:50%; transform:translateY(-50%); z-index:39;
+    display:flex; flex-direction:column; gap:8px; pointer-events:none;
+  }
+  .aisle b{ display:block; width:2px; height:14px; background:var(--line); transition:background .45s ease, height .45s ease; }
+  .aisle b.on{ background:var(--c,var(--ink)); height:24px; }
+  @media (max-width:1240px){ .aisle{ display:none; } }
+
+  .motionbtn{
+    display:none; align-items:center; gap:0.5rem; margin-top:1.6rem;
+    font-family:var(--font-mono); font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase;
+    background:none; border:1px solid var(--ink); color:var(--ink); cursor:pointer; padding:0.6rem 0.95rem;
+  }
+  .motionbtn:hover{ background:var(--ink); color:var(--bg); }
+
+  /* ---------- content blocks ---------- */
+  section.doc{ padding:6rem 0; }
+  .ruleline{ height:1px; background:var(--line); margin:0 0 3rem; }
+
+  .feeds{ display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:2.2rem; }
+  .feed .ph{ aspect-ratio:4/3; border:1px solid var(--line); }
+  .feed .cap{
+    margin-top:0.6rem; font-family:var(--font-mono); font-size:0.64rem;
+    letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-soft);
+    display:flex; align-items:center; gap:0.5rem;
+  }
+  .feed .cap::before{ content:''; width:8px; height:8px; background:var(--c); flex:none; }
+  .sync{
+    display:flex; align-items:center; gap:0.8rem; margin-top:1.6rem;
+    font-family:var(--font-mono); font-size:0.64rem; letter-spacing:0.12em;
+    text-transform:uppercase; color:var(--ink-soft);
+  }
+  .sync .bar{ flex:1; height:2px; background:linear-gradient(to right,var(--data),var(--ego)); opacity:0.55; }
+  @media (max-width:720px){ .feeds{ grid-template-columns:1fr; } }
+
+  .rig{ display:grid; grid-template-columns:1.05fr 1fr; gap:3rem; align-items:center; }
+  .rigshot{ position:relative; border:1px solid var(--line); }
+  .rigshot .ph{ aspect-ratio:7/5; }
+  .mk{ position:absolute; z-index:4; transform:translate(-50%,-50%); }
+  .mk i{
+    display:block; width:13px; height:13px; border-radius:50%;
+    border:2px solid var(--c,var(--ink)); background:rgba(242,237,226,0.9);
+    box-shadow:0 0 0 5px rgba(242,237,226,0.34);
+  }
+  .mk b{
+    position:absolute; top:50%; right:24px; transform:translateY(-50%);
+    white-space:nowrap; font-family:var(--font-mono); font-weight:500;
+    font-size:0.6rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink);
+    background:rgba(242,237,226,0.95); border:1px solid var(--line);
+    border-left:3px solid var(--c,var(--line)); padding:0.3rem 0.5rem;
+  }
+  .rigaside .ph{ aspect-ratio:16/10; border:1px solid var(--line); margin-top:1.6rem; }
+  @media (max-width:860px){
+    .rig{ grid-template-columns:1fr; gap:2rem; }
+    .mk b{ font-size:0.54rem; right:20px; }
+  }
+
+  .split{ display:grid; grid-template-columns:1fr 1fr; gap:3rem; align-items:center; }
+  @media (max-width:860px){ .split{ grid-template-columns:1fr; gap:2rem; } }
+
+  .bots{ display:grid; grid-template-columns:1.25fr 1fr; gap:1rem; margin-top:2.2rem; }
+  .bots .ph{ border:1px solid var(--line); min-height:280px; }
+  @media (max-width:720px){ .bots{ grid-template-columns:1fr; } }
+
+  .loop{ display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:1.7rem; }
+  .loop span{
+    font-family:var(--font-mono); font-size:0.62rem; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--ink-dim); border:1px solid var(--line); padding:0.4rem 0.65rem;
+    display:inline-flex; align-items:center; gap:0.45rem;
+  }
+  .loop span::before{ content:''; width:7px; height:7px; border-radius:50%; background:var(--c,var(--bot)); }
+
+  .spec{ margin-top:2rem; border-top:1px solid var(--line); max-width:44rem; }
+  .spec div{ display:grid; grid-template-columns:11rem 1fr; gap:1.2rem; padding:0.85rem 0; border-bottom:1px solid var(--line); }
+  .spec dt{ font-family:var(--font-mono); font-size:0.63rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--accent,var(--ink-soft)); margin:0; }
+  .spec dd{ margin:0; color:var(--ink); }
+  @media (max-width:620px){ .spec div{ grid-template-columns:1fr; gap:0.2rem; } }
+
+  .steps{ margin-top:2rem; counter-reset:s; max-width:46rem; padding:0; }
+  .steps li{ list-style:none; counter-increment:s; position:relative; padding:1rem 0 1rem 3.4rem; border-bottom:1px solid var(--line); }
+  .steps li::before{
+    content:counter(s,decimal-leading-zero); position:absolute; left:0; top:1.05rem;
+    font-family:var(--font-mono); font-size:0.68rem; letter-spacing:0.1em; color:var(--accent,var(--ink-soft));
+  }
+  .steps b{ color:var(--ink); font-weight:600; display:block; }
+
+  .trades{ display:flex; flex-wrap:wrap; gap:0.45rem; margin-top:2rem; max-width:60rem; }
+  .trades span{
+    font-family:var(--font-mono); font-size:0.63rem; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--ink-dim); border:1px solid var(--line); padding:0.38rem 0.62rem; background:rgba(242,237,226,0.6);
+  }
+  /* queued state carries a text label, not just a hairline nobody can see */
+  .trades span.soon{ color:var(--ink-dim); border-style:dashed; }
+  .trades span.soon::after{ content:' \00b7 queued'; color:var(--ink-soft); }
+  .tradekey{
+    display:flex; flex-wrap:wrap; gap:1.4rem; margin-top:1.2rem;
+    font-family:var(--font-mono); font-size:0.62rem; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--ink-dim);
+  }
+  .tradekey span{ display:inline-flex; align-items:center; gap:0.45rem; }
+  .tradekey i{ width:14px; height:0; border-top:1px solid var(--ink-dim); }
+  .tradekey i.d{ border-top-style:dashed; }
+
+  .stats{ display:flex; flex-wrap:wrap; gap:3rem; margin-top:2rem; }
+  .stats .n{ font-family:var(--font-display); font-style:italic; font-weight:700; font-size:2rem; color:var(--ink); }
+  .stats .l{ font-family:var(--font-mono); font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-dim); margin-top:0.2rem; }
+
+  .cta-row{ display:flex; flex-wrap:wrap; gap:0.9rem; margin-top:1.8rem; }
+  .btn{
+    display:inline-flex; align-items:center; gap:0.4rem;
+    font-family:var(--font-mono); font-size:0.72rem; letter-spacing:0.08em;
+    text-transform:uppercase; text-decoration:none;
+    padding:0.8rem 1.2rem; border:1px solid var(--ink); color:var(--ink);
+  }
+  .btn:hover{ background:var(--ink); color:var(--bg); }
+  .btn.ghost{ border-color:var(--line); color:var(--ink-dim); }
+  .btn.ghost:hover{ border-color:var(--ego); color:var(--ego); }
+
+  footer{
+    border-top:1px solid var(--line); padding:1.6rem 0 5rem;
+    font-family:var(--font-mono); font-size:0.64rem; letter-spacing:0.1em;
+    color:var(--ink-dim); display:flex; justify-content:space-between; flex-wrap:wrap; gap:0.9rem; align-items:center;
+  }
+</style>
+
+<div class="rail" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+<div class="aisle" id="aisleNav" aria-hidden="true"></div>
+
+<div class="hud" aria-hidden="true">
+  <span class="box" id="zonebox"><span class="rec"></span><span id="station">00</span><span id="zone">Entrance</span></span>
+  <span class="box right"><span class="tc" id="tc">00:00:00</span></span>
+</div>
+
+<!-- ============ 00 entrance ============ -->
+<div class="station travel" data-zone="Entrance" data-c="ego">
+  <div class="pin">
+    <figure class="ph" style="--tint:var(--amber)">
+      <img src="img/floor-wide.jpg" alt="Wide view of an industrial hall with steel roof trusses and a long central aisle" width="1800" height="1350" fetchpriority="high" decoding="async">
+    </figure>
+    <div class="scrim"></div>
+    <div class="label wrap">
+      <div class="spectrum" style="margin-bottom:1.4rem"><i></i><i></i><i></i><i></i></div>
+      <h1>Walk the floor.</h1>
+      <p style="font-family:var(--font-display); font-style:italic; font-size:1.2rem; max-width:30ch">
+        Every kind of work, under one roof, recorded from the operator's point of view.
+      </p>
+      <p style="font-family:var(--font-mono); font-size:0.63rem; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-dim); margin-top:1.1rem; max-width:40ch; line-height:1.9">
+        A capture floor in development. What follows is the design, and the first bays already shooting against it.
+      </p>
+      <p style="font-family:var(--font-mono); font-size:0.65rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--ink-soft); margin-top:1.6rem">
+        Scroll to walk in
+      </p>
+      <button class="motionbtn" id="motionbtn" type="button">Turn motion on</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 01 the walk ============ -->
+<div class="station walk" data-zone="Aisle A" data-c="amber">
+  <div class="pin">
+    <div class="walkHead">
+      <div class="inner">
+        <div class="eyebrow" style="--accent:var(--amber)">Aisle A &middot; keep scrolling to walk</div>
+        <h2 style="max-width:20ch">Eight zones off one aisle.</h2>
+      </div>
+    </div>
+    <div class="scene" id="scene">
+      <div class="plane fl"></div>
+      <div class="plane ce"></div>
+
+      <div class="sign" style="--z:-1500px; --c:var(--amber)">Vegetable prep</div>
+      <div class="zone" style="--x:-1; --z:-1700px; --c:var(--amber)">
+        <figure class="ph" style="--tint:var(--amber)">
+          <span class="chip tl" style="--chipline:var(--ego)"><span class="dot"></span>Rec</span>
+          <img src="img/bench-hands.jpg" alt="Hands working at a bench" width="1400" height="933" loading="lazy" decoding="async">
+        </figure>
+        <div class="plate"><b>Kitchen and food prep</b><span>01</span></div>
+      </div>
+
+      <div class="zone" style="--x:1; --z:-3200px; --c:var(--data)">
+        <figure class="ph" style="--tint:var(--data)">
+          <span class="chip tl" style="--chipline:var(--data)"><span class="dot"></span>Rec</span>
+          <img src="img/rig-inuse.jpg" alt="An operator wearing a head mounted capture device beside a screen" width="1400" height="990" loading="lazy" decoding="async">
+        </figure>
+        <div class="plate"><b>Data and robotics control</b><span>02</span></div>
+      </div>
+
+      <div class="sign" style="--z:-4400px; --c:var(--bot)">Engine repair</div>
+      <div class="zone" style="--x:-1; --z:-4700px; --c:var(--bot)">
+        <figure class="ph" style="--tint:var(--bot)">
+          <span class="chip tl" style="--chipline:var(--ego)"><span class="dot"></span>Rec</span>
+          <img src="img/task-machine.jpg" alt="A worker operating a machine" width="1400" height="933" loading="lazy" decoding="async">
+        </figure>
+        <div class="plate"><b>Industrial applications</b><span>03</span></div>
+      </div>
+
+      <div class="zone" style="--x:1; --z:-6200px; --c:var(--amber)">
+        <figure class="ph" style="--tint:var(--amber)">
+          <span class="chip tl" style="--chipline:var(--ego)"><span class="dot"></span>Rec</span>
+          <img src="img/racking.jpg" alt="Racking and stored materials" width="1400" height="933" loading="lazy" decoding="async">
+        </figure>
+        <div class="plate"><b>Construction assembly</b><span>04</span></div>
+      </div>
+
+      <div class="sign" style="--z:-7400px; --c:var(--amber)">Agriculture</div>
+      <div class="zone" style="--x:-1; --z:-7700px; --c:var(--amber)">
+        <figure class="ph" style="--tint:var(--amber)">
+          <span class="chip tl" style="--chipline:var(--ego)"><span class="dot"></span>Rec</span>
+          <img src="img/floor-people.jpg" alt="Operators working across a floor" width="1400" height="934" loading="lazy" decoding="async">
+        </figure>
+        <div class="plate"><b>Agriculture and hydroponics</b><span>05</span></div>
+      </div>
+
+      <div class="zone" style="--x:1; --z:-9200px; --c:var(--bot)">
+        <figure class="ph" style="--tint:var(--bot)">
+          <span class="chip tl" style="--chipline:var(--bot)"><span class="dot"></span>Train</span>
+          <img src="img/robot-cell.jpg" alt="Industrial robot arms on a line" width="1400" height="933" loading="lazy" decoding="async">
+        </figure>
+        <div class="plate"><b>Advanced manufacturing</b><span>06</span></div>
+      </div>
+
+      <div class="sign" style="--z:-10400px; --c:var(--ego)">Textiles</div>
+      <div class="zone" style="--x:-1; --z:-10700px; --c:var(--ego)">
+        <figure class="ph" style="--tint:var(--ego)">
+          <span class="chip tl" style="--chipline:var(--ego)"><span class="dot"></span>Rec</span>
+          <img src="img/rig-detail.jpg" alt="Close view of a head mounted capture device" width="1200" height="800" loading="lazy" decoding="async">
+        </figure>
+        <div class="plate"><b>Textiles and smart fabrics</b><span>07</span></div>
+      </div>
+
+      <div class="zone" style="--x:1; --z:-12200px; --c:var(--bot)">
+        <figure class="ph" style="--tint:var(--bot)">
+          <span class="chip tl" style="--chipline:var(--bot)"><span class="dot"></span>Train</span>
+          <img src="img/robot-pick.jpg" alt="Dual arm robot picking items from trays" width="1400" height="1120" loading="lazy" decoding="async">
+        </figure>
+        <div class="plate"><b>Remote field robotics</b><span>08</span></div>
+      </div>
+
+      <div class="sign" style="--z:-13600px; --c:var(--data)">End of aisle</div>
+    </div>
+    <div class="fog"></div>
+  </div>
+</div>
+
+<main>
+
+  <section class="doc wrap" data-zone="Why first person" data-c="ego">
+    <div class="ruleline"></div>
+    <div class="split">
+      <div>
+        <div class="eyebrow reveal" style="--accent:var(--ego)">Why first person</div>
+        <h2 class="reveal">A robot never sees the room from the doorway.</h2>
+        <p class="reveal">Third person footage tells you that a task happened. It does not tell you what the hands did, in what order, with what grip, or where the operator was looking when they decided. Policy learning needs the second thing.</p>
+        <p class="reveal">A head mounted camera sits roughly where a robot's own sensors sit. The frame moves when attention moves, so occlusion, reach and timing all arrive in the shape the machine will meet them.</p>
+      </div>
+      <figure class="ph px reveal" style="--tint:var(--ego); aspect-ratio:4/3; border:1px solid var(--line)">
+        <span class="chip tl" style="--chipline:var(--ego)"><span class="dot"></span>Eye line</span>
+        <img src="img/bench-hands.jpg" alt="Close first person view of hands using a tool at a workbench" width="1400" height="933" loading="lazy" decoding="async">
+      </figure>
+    </div>
+  </section>
+
+  <section class="doc wrap" data-zone="Two feeds" data-c="data">
+    <div class="ruleline"></div>
+    <div class="eyebrow reveal" style="--accent:var(--data)">Two feeds, one take</div>
+    <h2 class="reveal">What the room sees, and what the worker sees.</h2>
+    <p class="reveal">Every task is captured from two points of view at the same instant. A fixed camera holds the wide view for context. The worn rig holds the view a robot actually needs.</p>
+    <div class="feeds reveal">
+      <div class="feed" style="--c:var(--data)">
+        <figure class="ph px" style="--tint:var(--data)">
+          <span class="chip tl" style="--chipline:var(--data)"><span class="dot"></span>Floor cam</span>
+          <span class="chip tr">00:04:12</span>
+          <img src="img/task-machine.jpg" alt="Wide shot of a worker operating a machine on a factory floor" width="1400" height="933" loading="lazy" decoding="async">
+        </figure>
+        <div class="cap">Wide &middot; fixed &middot; context</div>
+      </div>
+      <div class="feed" style="--c:var(--ego)">
+        <figure class="ph px" style="--tint:var(--ego)">
+          <span class="chip tl" style="--chipline:var(--ego)"><span class="dot"></span>Head cam</span>
+          <span class="chip tr">00:04:12</span>
+          <img src="img/rig-inuse.jpg" alt="A person wearing a head mounted capture device with hands raised" width="1400" height="990" loading="lazy" decoding="async">
+        </figure>
+        <div class="cap">Egocentric &middot; eye level &middot; hands in frame</div>
+      </div>
+    </div>
+    <div class="sync reveal"><span>Synced to the same timecode</span><span class="bar"></span><span>All four streams shipped together</span></div>
+  </section>
+
+  <section class="doc wrap" data-zone="The rig" data-c="ego">
+    <div class="ruleline"></div>
+    <div class="rig">
+      <div class="rigshot reveal">
+        <figure class="ph" style="--tint:var(--ego)">
+          <img src="img/rig-inuse.jpg" alt="A person wearing a head mounted capture device, hands raised, with a screen behind showing the tracked view" width="1400" height="990" loading="lazy" decoding="async">
+        </figure>
+        <div class="mk" style="--c:var(--ego); left:79%; top:24%"><i></i><b>Head &middot; eye line</b></div>
+        <div class="mk" style="--c:var(--amber); left:61%; top:47%"><i></i><b>Wrist &middot; grip detail</b></div>
+        <div class="mk" style="--c:var(--data); left:87%; top:69%"><i></i><b>Chest &middot; stabilised wide</b></div>
+      </div>
+      <div>
+        <div class="eyebrow reveal" style="--accent:var(--ego)">The rig</div>
+        <h2 class="reveal">Worn, not mounted.</h2>
+        <p class="reveal">Three cameras move with the operator: one at the eye line, one on the chest for a stabilised wide, one at the wrist for grip and contact detail. A fourth is fixed to the bay for the wide. Only the floor cam belongs to the room, so the worn rig travels to any bay unchanged.</p>
+        <p class="reveal"><strong>Depth, hand pose and timing come out of the same pass.</strong> Nothing is staged afterwards, and nothing is reconstructed from a single angle.</p>
+        <div class="rigaside reveal">
+          <figure class="ph px" style="--tint:var(--ego)">
+            <img src="img/rig-detail.jpg" alt="Close view of a head mounted device being adjusted" width="1200" height="800" loading="lazy" decoding="async">
+          </figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============ travelling shot ============ -->
+<div class="station travel" data-zone="Deeper in" data-c="bot">
+  <div class="pin">
+    <figure class="ph" style="--tint:var(--bot)">
+      <img src="img/robot-cell.jpg" alt="Industrial robot arms working along a production line" width="1400" height="933" loading="lazy" decoding="async">
+    </figure>
+    <div class="scrim"></div>
+    <div class="label wrap">
+      <div class="eyebrow" style="--accent:var(--bot)">Halfway down</div>
+      <div class="big">The cells run the same task the bay just recorded.</div>
+    </div>
+  </div>
+</div>
+
+<main>
+
+  <section class="doc wrap" data-zone="The deliverable" data-c="data">
+    <div class="ruleline"></div>
+    <div class="eyebrow reveal" style="--accent:var(--data)">The deliverable</div>
+    <h2 class="reveal">Footage is the raw material. The dataset is the product.</h2>
+    <p class="reveal">Captures ship as synchronised streams with a manifest, not as a folder of clips. You get every view on one timecode, plus the session metadata needed to filter and resample without re-watching anything.</p>
+    <dl class="spec reveal" style="--accent:var(--data)">
+      <div><dt>Capture</dt><dd>4K 60 at the head, 1080 60 at chest and wrist, 1080 60 on the fixed floor cam</dd></div>
+      <div><dt>Sync</dt><dd>One timecode across all streams, frame accurate</dd></div>
+      <div><dt>Audio</dt><dd>48 kHz per session, muted on request</dd></div>
+      <div><dt>Metadata</dt><dd>Trade, task, operator id, take number, environment, lighting state</dd></div>
+      <div><dt>Annotation</dt><dd>Task boundaries and failure flags as standard, hand pose on request</dd></div>
+      <div><dt>Format</dt><dd>MP4 H.264 plus originals on request, JSON manifest per session</dd></div>
+      <div><dt>Delivery</dt><dd>Your bucket or ours, checksummed, resumable</dd></div>
+    </dl>
+  </section>
+
+  <section class="doc wrap" data-zone="Engagement" data-c="amber">
+    <div class="ruleline"></div>
+    <div class="eyebrow reveal" style="--accent:var(--amber)">How an engagement runs</div>
+    <h2 class="reveal">You write the spec. We go and get it.</h2>
+    <ol class="steps reveal" style="--accent:var(--amber)">
+      <li><b>Brief</b>You describe the task, the environment, and the failure cases you care about.</li>
+      <li><b>Pilot</b>We shoot one short session and you sign off the framing before anyone commits to volume.</li>
+      <li><b>Capture</b>The bay runs to that spec. Multiple operators, multiple takes, deliberate variation.</li>
+      <li><b>Check</b>Every session is reviewed before it leaves the floor. The ones that fail are reshot.</li>
+      <li><b>Deliver</b>Synchronised streams and manifest, priced per usable hour.</li>
+    </ol>
+  </section>
+
+  <section class="doc wrap" data-zone="Quality" data-c="bot">
+    <div class="ruleline"></div>
+    <div class="split">
+      <figure class="ph px reveal" style="--tint:var(--bot); aspect-ratio:4/3; border:1px solid var(--line)">
+        <img src="img/task-machine.jpg" alt="A worker at a machine on a production floor" width="1400" height="933" loading="lazy" decoding="async">
+      </figure>
+      <div>
+        <div class="eyebrow reveal" style="--accent:var(--bot)">What gets thrown away</div>
+        <h2 class="reveal">Most of the work is refusing to ship bad footage.</h2>
+        <p class="reveal">A session fails review if the head camera drifts off the work, if the hands leave frame during the critical moment, if exposure shifts mid take, or if the operator narrates instead of working. Rejected takes are reshot, not padded out.</p>
+        <p class="reveal"><strong>You are billed for usable hours.</strong> That number is smaller than the number of hours recorded, and the gap is the point.</p>
+        <div class="loop reveal">
+          <span style="--c:var(--ego)">Head drift</span>
+          <span style="--c:var(--ego)">Hands out of frame</span>
+          <span style="--c:var(--amber)">Exposure shift</span>
+          <span style="--c:var(--data)">Sync break</span>
+          <span style="--c:var(--bot)">Narration</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="doc wrap" data-zone="Training cells" data-c="bot">
+    <div class="ruleline"></div>
+    <div class="eyebrow reveal" style="--accent:var(--bot)">Training cells</div>
+    <h2 class="reveal">The robot learns in the next bay over.</h2>
+    <p class="reveal">Footage goes straight from the bay to the cell beside it. That adjacency is the reason the floor is laid out this way. The arm attempts the same task, fails in a specific way, and the failure says which bay to shoot again and what to vary. The floor runs as a loop rather than a pipeline.</p>
+    <div class="bots reveal">
+      <figure class="ph px" style="--tint:var(--bot)">
+        <span class="chip tl" style="--chipline:var(--bot)"><span class="dot"></span>Training cell</span>
+        <img src="img/robot-pick.jpg" alt="Dual arm robot picking items from trays on a bench" width="1400" height="1120" loading="lazy" decoding="async">
+      </figure>
+      <figure class="ph px" style="--tint:var(--bot)">
+        <img src="img/robot-hand.jpg" alt="Close view of a robotic hand" width="1400" height="1030" loading="lazy" decoding="async">
+      </figure>
+    </div>
+    <div class="loop reveal">
+      <span style="--c:var(--ego)">Record the bay</span>
+      <span style="--c:var(--data)">Label and sync</span>
+      <span style="--c:var(--bot)">Train the policy</span>
+      <span style="--c:var(--bot)">Watch it fail</span>
+      <span style="--c:var(--amber)">Reshoot the gap</span>
+    </div>
+  </section>
+
+  <section class="doc wrap" data-zone="The trades" data-c="amber">
+    <div class="ruleline"></div>
+    <div class="eyebrow reveal" style="--accent:var(--amber)">The taxonomy</div>
+    <h2 class="reveal">Bays are trades, and trades keep arriving.</h2>
+    <p class="reveal">The floor starts with the tasks clients ask for and grows sideways from there. A bay is worth building when a trade has enough distinct sub tasks to shoot for weeks rather than hours. The short list below is what is shooting. Everything marked queued is specified and waiting on a bay.</p>
+    <div class="tradekey reveal">
+      <span><i></i>Shooting now</span>
+      <span><i class="d"></i>Queued, not yet running</span>
+    </div>
+    <div class="trades reveal">
+      <span>Knife work</span><span>Kitchen prep</span><span>Solder joint</span>
+      <span>Order picking</span><span>Pack and label</span>
+      <span class="soon">Plating</span><span class="soon">Espresso</span><span class="soon">Engine teardown</span>
+      <span class="soon">Brake fit</span><span class="soon">Tyre change</span><span class="soon">Wiring loom</span>
+      <span class="soon">Board rework</span><span class="soon">Jewellery setting</span><span class="soon">Stone mounting</span>
+      <span class="soon">Seam stitch</span><span class="soon">Hemming</span><span class="soon">Pattern cutting</span>
+      <span class="soon">Shelf restock</span><span class="soon">Pallet wrap</span><span class="soon">Bike service</span>
+      <span class="soon">Plumbing fit</span><span class="soon">Tiling</span><span class="soon">Plastering</span>
+      <span class="soon">Bench joinery</span><span class="soon">Upholstery</span><span class="soon">Watch service</span>
+      <span class="soon">Cable termination</span><span class="soon">Glazing</span>
+    </div>
+  </section>
+
+  <section class="doc wrap" data-zone="Consent" data-c="data">
+    <div class="ruleline"></div>
+    <div class="split">
+      <div>
+        <div class="eyebrow reveal" style="--accent:var(--data)">Consent policy</div>
+        <h2 class="reveal">No hand gets recorded without agreeing to it first.</h2>
+        <p class="reveal">Operators are hired to be filmed and sign a release covering the uses the footage is sold for. Nobody is filmed who has not signed one.</p>
+        <p class="reveal">Sessions run inside our own space rather than in customer homes or businesses. That rules out bystanders who never agreed to anything, and it keeps the premises under our control.</p>
+        <p class="reveal">Faces are largely incidental in egocentric footage. Where the floor cam catches one, it is blurred before delivery unless the use case requires otherwise and the operator has agreed to that use.</p>
+      </div>
+      <figure class="ph px reveal" style="--tint:var(--data); aspect-ratio:4/3; border:1px solid var(--line)">
+        <img src="img/floor-people.jpg" alt="Workers moving between stations on a production floor" width="1400" height="934" loading="lazy" decoding="async">
+      </figure>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============ travelling shot, end of aisle ============ -->
+<div class="station travel" data-zone="End of aisle" data-c="amber">
+  <div class="pin">
+    <figure class="ph" style="--tint:var(--amber)">
+      <img src="img/racking.jpg" alt="Warehouse racking filled with bins and cartons under industrial lighting" width="1400" height="933" loading="lazy" decoding="async">
+    </figure>
+    <div class="scrim"></div>
+    <div class="label wrap">
+      <div class="eyebrow" style="--accent:var(--amber)">End of aisle</div>
+      <div class="big">The building is the instrument.</div>
+    </div>
+  </div>
+</div>
+
+<main>
+
+  <section class="doc wrap" data-zone="Where this goes" data-c="bot">
+    <div class="ruleline"></div>
+    <div class="eyebrow reveal" style="--accent:var(--bot)">Where this goes</div>
+    <h2 class="reveal">Contract capture now. A standing library after.</h2>
+    <p class="reveal">Today every hour is shot against a specific brief. That is the right way to start, because it forces the floor to be useful before it is large.</p>
+    <p class="reveal">The end state is a library deep enough that most requests are answered from footage that already exists, and only the genuinely new task needs a shoot.</p>
+    <div class="stats reveal">
+      <div><div class="n">Now</div><div class="l">Capture to brief</div></div>
+      <div><div class="n">Next</div><div class="l">Repeat trades on a standing schedule</div></div>
+      <div><div class="n">Then</div><div class="l">Library first, shoot only the gaps</div></div>
+    </div>
+  </section>
+
+  <section class="doc wrap" data-zone="Exit" data-c="ego">
+    <div class="ruleline"></div>
+    <div class="eyebrow reveal" style="--accent:var(--ego)">Exit</div>
+    <h2 class="reveal">Every task worth doing is worth recording once.</h2>
+    <p class="reveal">Build the floor, run the tasks, capture them properly, and turn the output into the training set physical AI has been missing.</p>
+    <div class="cta-row reveal">
+      <a class="btn" href="https://cal.com/abhinay-tiwari/30min" target="_blank" rel="noopener noreferrer">Book a 30 min call &rarr;</a>
+      <a class="btn ghost" href="https://www.linkedin.com/in/abhinay-tiwari22/" target="_blank" rel="noopener noreferrer">Connect on LinkedIn</a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="wrap">
+  <span>Think Layer</span>
+  <span class="spectrum"><i></i><i></i><i></i><i></i></span>
+</footer>
+
+<script>
+(function(){
+  'use strict';
+  var root = document.documentElement;
+  var mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var nativeTL = CSS.supports('(animation-timeline: view()) and (animation-range: entry)');
+
+  function motionOn(){ return !mq.matches || root.getAttribute('data-motion') === 'on'; }
+
+  if(!nativeTL) root.classList.add('js-motion');
+
+  var zones = [].slice.call(document.querySelectorAll('[data-zone]'));
+  var ACC = { ego:'var(--ego)', bot:'var(--bot)', data:'var(--data)', amber:'var(--amber)' };
+
+  /* aisle notches */
+  var nav = document.getElementById('aisleNav');
+  zones.forEach(function(z){
+    var b = document.createElement('b');
+    b.style.setProperty('--c', ACC[z.getAttribute('data-c')] || 'var(--ink)');
+    nav.appendChild(b);
+  });
+  var notches = [].slice.call(nav.children);
+
+  /* how far down the aisle the walk goes, read off the furthest zone rather than guessed */
+  var scene = document.getElementById('scene');
+  var walkSec = scene ? scene.closest('.station') : null;
+  var WALK_END = 17200;
+  function measure(){
+    if(!scene) return;
+    var far = 0;
+    scene.querySelectorAll('[style*="--z"]').forEach(function(el){
+      var z = parseFloat(el.style.getPropertyValue('--z'));
+      if(!isNaN(z) && -z > far) far = -z;
+    });
+    if(far > 0){
+      WALK_END = far + 1600;              // keep walking a little past the last sign
+      scene.style.setProperty('--walkend', WALK_END + 'px');
+    }
+  }
+  measure();
+  window.addEventListener('load', measure);
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(measure).catch(function(){});
+
+  /* reveals, only when the browser has no scroll timelines */
+  if(!nativeTL && 'IntersectionObserver' in window){
+    var io = new IntersectionObserver(function(es){
+      es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold:0.12, rootMargin:'0px 0px -8% 0px' });
+    document.querySelectorAll('.reveal,.reveal-s,.ruleline').forEach(function(el){ io.observe(el); });
+  }
+
+  var zoneEl = document.getElementById('zone');
+  var stEl = document.getElementById('station');
+  var zoneBox = document.getElementById('zonebox');
+  var tcEl = document.getElementById('tc');
+  var railBars = [].slice.call(document.querySelectorAll('.rail i'));
+  var lastZone = -1, ticking = false;
+
+  function pad(n){ n = Math.floor(n); return (n < 10 ? '0' : '') + n; }
+
+  function progress(){
+    var el = document.scrollingElement || document.documentElement;
+    var max = el.scrollHeight - window.innerHeight;
+    if(max <= 0) return 0;
+    var p = (window.scrollY || el.scrollTop || 0) / max;
+    return p < 0 ? 0 : p > 1 ? 1 : p;
+  }
+
+  function update(){
+    ticking = false;
+    var p = progress();
+
+    if(!nativeTL){
+      var seg = 1 / railBars.length;
+      railBars.forEach(function(bar, i){
+        var local = (p - i * seg) / seg;
+        bar.style.transform = 'scaleX(' + Math.max(0, Math.min(1, local)) + ')';
+      });
+      /* walk the corridor by hand where scroll timelines are missing */
+      if(scene && walkSec && motionOn()){
+        var r = walkSec.getBoundingClientRect();
+        var span = r.height - window.innerHeight;
+        var local2 = span > 0 ? (-r.top) / span : 0;
+        local2 = local2 < 0 ? 0 : local2 > 1 ? 1 : local2;
+        scene.style.transform = 'translate3d(0,0,' + (WALK_END * local2) + 'px)';
+      }
+    }
+
+    var mid = window.innerHeight * 0.45, best = lastZone < 0 ? 0 : lastZone, bestD = Infinity;
+    for(var i = 0; i < zones.length; i++){
+      var rect = zones[i].getBoundingClientRect();
+      if(rect.bottom <= 0 || rect.top >= window.innerHeight) continue;
+      var d = Math.abs((rect.top + Math.min(rect.height, window.innerHeight) / 2) - mid);
+      if(d < bestD){ bestD = d; best = i; }
+    }
+    if(best !== lastZone){
+      lastZone = best;
+      var z = zones[best];
+      if(zoneEl) zoneEl.textContent = z.getAttribute('data-zone') || '';
+      if(stEl) stEl.textContent = pad(best) + ' /';
+      if(zoneBox) zoneBox.style.setProperty('--hudc', ACC[z.getAttribute('data-c')] || 'var(--ego)');
+      notches.forEach(function(n, i){ n.classList.toggle('on', i === best); });
+    }
+
+    if(tcEl){
+      var secs = p * 46 * 60;
+      tcEl.textContent = pad(secs / 3600) + ':' + pad((secs / 60) % 60) + ':' + pad(secs % 60);
+    }
+  }
+
+  function onScroll(){ if(!ticking){ ticking = true; requestAnimationFrame(update); } }
+  window.addEventListener('scroll', onScroll, { passive:true });
+  window.addEventListener('resize', function(){ measure(); onScroll(); }, { passive:true });
+
+  var btn = document.getElementById('motionbtn');
+  if(btn){
+    btn.setAttribute('aria-pressed', 'false');
+    btn.addEventListener('click', function(){
+      var on = root.getAttribute('data-motion') === 'on';
+      if(on){ root.removeAttribute('data-motion'); btn.textContent = 'Turn motion on'; btn.setAttribute('aria-pressed','false'); }
+      else { root.setAttribute('data-motion','on'); btn.textContent = 'Turn motion off'; btn.setAttribute('aria-pressed','true'); }
+      measure(); update();
+    });
+  }
+
+  update();
+})();
+</script>
